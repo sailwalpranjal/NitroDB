@@ -1,0 +1,32 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+
+# IDE
+.idea/
+*.iml
+.eclipse/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NitroDB data dirs (test artifacts)
+/data/
+/testdata/
+*.wal
+*.sst
+*.mf
+LOCK
+
+# Benchmark results
+benchmark-results/
+jmh-result.json
+
+# Coverage
+*.exec
+jacoco.xml

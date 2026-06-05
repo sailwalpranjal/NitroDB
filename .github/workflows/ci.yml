@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Compile
+        run: mvn -B compile
+      - name: Unit Tests
+        run: mvn -B test -pl nitrodb-core
+      - name: Integration Tests
+        run: mvn -B verify -pl nitrodb-core
+      - name: Checkstyle
+        run: mvn -B checkstyle:check
+      - name: Coverage Report
+        run: mvn -B jacoco:report

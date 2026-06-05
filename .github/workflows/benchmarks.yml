@@ -1,0 +1,25 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'
+
+jobs:
+  jmh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Build
+        run: mvn -B package -DskipTests -pl nitrodb-benchmarks
+      - name: Run JMH
+        run: |
+          java -server -XX:+UseG1GC -XX:MaxDirectMemorySize=2g \
+            -jar nitrodb-benchmarks/target/benchmarks.jar \
+            -rf json -rff results/jmh-result.json \
+            -wi 5 -i 10 -f 2

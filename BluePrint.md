@@ -3964,3 +3964,55 @@ Phase 14 → Benchmarks: all JMH benchmark classes
 ---
 
 *End of NitroDB Engineering Blueprint v1.0.0*
+
+---
+
+# Post-Implementation Findings
+
+## Architecture Decisions Validated
+
+- The WAL plus memtable write path kept recovery behavior simple and testable.
+- Immutable SSTables plus an append-only manifest made restart validation straightforward.
+- MVCC sequence numbers were sufficient for stable point-in-time reads and snapshot-stable scans.
+- Bloom filters, sparse indexes, and the block cache complemented each other well on the read path.
+- Keeping the project embedded preserved focus on storage-engine concerns instead of network concerns.
+
+## Lessons Learned
+
+- Recovery correctness depends on logical batch semantics, not just physical record parsing.
+- Compaction correctness is as much about file lifecycle and snapshot visibility as it is about merge ordering.
+- Benchmarks need packaging validation, not just source compilation.
+- Lightweight observability is valuable, but default logging is too noisy for an embedded library and should be opt-in.
+
+## Implementation Notes
+
+- Unsupported API surfaces were removed where they were not backed by the engine, including unused TTL and per-read checksum options.
+- Real-world use-case tests were added to prove NitroDB works as settings storage, preference storage, an embedded metadata store, a persistence cache, and a lightweight key-value engine.
+- The benchmark build was corrected so the shaded JMH jar now contains the required benchmark metadata and can list and run workloads.
+
+## Actual Benchmark Results
+
+Quick benchmark smoke run executed on `2026-06-05` with Java `25.0.1`, one warmup iteration, one measurement iteration, and one fork:
+
+- `CompactionLoadBenchmark.writeLoad = 96.262 ops/s`
+- `MixedWorkloadBenchmark.mixedReadWrite = 129608.754 ops/s`
+- `RangeScanBenchmark.scan = 6725.516 ops/s`
+- `ReadBenchmark.pointRead = 2254766.463 ops/s`
+- `WriteBenchmark.sequentialPuts = 142079.186 ops/s`
+
+These values prove the benchmark suite is runnable. They are not a substitute for a controlled performance study.
+
+## Limitations Discovered
+
+- NitroDB remains a single-node embedded engine.
+- There is no SQL layer, replication, compression, or encryption-at-rest implementation.
+- Metrics are internal and sink-based rather than integrated with an external telemetry platform.
+- The benchmark numbers in this repository are smoke-test baselines, not production SLAs.
+
+## Future Improvements
+
+- compression
+- external metrics integration
+- stronger compaction scheduling heuristics
+- richer benchmark scenarios and profiling guidance
+- optional service wrapper or protocol layer above the embedded engine

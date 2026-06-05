@@ -1,0 +1,24 @@
+version: "3.9"
+services:
+  nitrodb-dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: builder
+    volumes:
+      - ./:/workspace
+      - ~/.m2:/root/.m2
+    working_dir: /workspace
+    command: mvn test
+    environment:
+      - JAVA_TOOL_OPTIONS=-XX:MaxDirectMemorySize=1g
+
+  nitrodb-bench:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runtime
+    volumes:
+      - ./benchmark-results:/results
+    environment:
+      - JVM_OPTS=-server -XX:+UseG1GC -XX:MaxDirectMemorySize=2g -Xms1g -Xmx1g
