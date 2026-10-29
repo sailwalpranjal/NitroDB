@@ -25,4 +25,4 @@ jobs:
       - name: Checkstyle
         run: ./mvnw -B checkstyle:check
       - name: Coverage Report
-        run: ./mvnw -B jacoco:report
+        run: ./mvnw -B org.jacoco:jacoco-maven-plugin:0.8.12:report
