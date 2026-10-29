@@ -33,3 +33,4 @@ jacoco.xml
 
 # local Maven copies
 .tools/
+results/
