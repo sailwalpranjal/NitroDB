@@ -34,3 +34,4 @@ jacoco.xml
 # local Maven copies
 .tools/
 results/
+jcstress-results-*.bin.gz
