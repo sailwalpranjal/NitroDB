@@ -26,7 +26,7 @@ That is the output of the example runner: write two keys, delete one, close, reo
 You need JDK 21 or newer. The Maven wrapper downloads Maven 3.9.11 on first use, so nothing else is required.
 
 ```bash
-./mvnw -B -q -pl nitrodb-core test       # 69 tests
+./mvnw -B -q -pl nitrodb-core test       # 70 tests
 ./mvnw -pl nitrodb-core exec:java -Dexec.mainClass=com.nitrodb.NitroDBExampleRunner -Dexec.args=example-data
 ```
 
@@ -58,7 +58,7 @@ Reads go through snapshots: a snapshot is a sequence number, and keys are stored
 
 ## Evidence
 
-Measured for this README by running `mvn -pl nitrodb-core test` on JDK 25 (compiling for Java 21): **69 tests, 0 failures, 0 errors.**
+Measured for this README by running `mvn -pl nitrodb-core test` on JDK 25 (compiling for Java 21): **70 tests, 0 failures, 0 errors.**
 
 Recorded in the design document from a run on 2026-06-05, not repeated for this README: `mvn verify` succeeded across all three modules, and the JCStress suite (concurrent write and read, snapshot isolation, compaction race) passed 42 of 42 outcomes.
 
@@ -72,6 +72,7 @@ Benchmarks: JMH benchmarks are packaged (`nitrodb-benchmarks`). The only results
 - **Durability depends on configuration.** `config/default.properties` sets `syncWrites=false` and `walSyncMode=ASYNC`, so the most recent writes can be lost on power failure. Change them if that matters.
 - **The compaction smoke benchmark looks wrong or slow** (about 96 ops/s against about 142,000 for sequential puts). I have not worked out which. It is the first roadmap item.
 - **JCStress is not run in CI.** The 42 of 42 result is a one-off.
+- **Range scans can still hit a compaction race.** Point reads are protected from a file being closed under them; scans hold files open longer and are not covered yet.
 - **Not audited:** the off-heap block cache allocator's lifetime rules.
 
 ## Product thinking

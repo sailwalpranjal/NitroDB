@@ -63,6 +63,10 @@ public final class NitroDBImpl implements NitroDB {
     private final Map<String, SSTableReader> sstableReaders = new ConcurrentHashMap<>();
     private final ReentrantLock[] stripeLocks = new ReentrantLock[64];
     private final ReentrantLock rotationLock = new ReentrantLock();
+    // Point reads hold the read side while they search the SSTables; removing a compacted-away
+    // file takes the write side, so a read never uses a file that is being closed and deleted.
+    private final java.util.concurrent.locks.ReentrantReadWriteLock sstableGate =
+            new java.util.concurrent.locks.ReentrantReadWriteLock();
     // Writers hold the read side while they put into the active memtable; rotation takes the write
     // side. That way a memtable is never copied while a write to it is still in flight.
     private final java.util.concurrent.locks.ReentrantReadWriteLock writeGate =
@@ -333,13 +337,18 @@ public final class NitroDBImpl implements NitroDB {
     }
 
     private Optional<MemTableEntry> searchSSTables(byte[] key, long maxSeq) {
-        for (SSTableReader reader : orderedReadersForLookup()) {
-            Optional<MemTableEntry> entry = reader.getEntry(key, maxSeq);
-            if (entry.isPresent()) {
-                return entry;
+        sstableGate.readLock().lock();
+        try {
+            for (SSTableReader reader : orderedReadersForLookup()) {
+                Optional<MemTableEntry> entry = reader.getEntry(key, maxSeq);
+                if (entry.isPresent()) {
+                    return entry;
+                }
             }
+            return Optional.empty();
+        } finally {
+            sstableGate.readLock().unlock();
         }
-        return Optional.empty();
     }
 
     private List<SSTableReader> orderedReadersForLookup() {
@@ -377,9 +386,14 @@ public final class NitroDBImpl implements NitroDB {
     }
 
     private void unregisterSstable(SSTableMetadata metadata) {
-        SSTableReader reader = sstableReaders.remove(metadata.fileId());
-        if (reader != null) {
-            reader.close();
+        sstableGate.writeLock().lock();
+        try {
+            SSTableReader reader = sstableReaders.remove(metadata.fileId());
+            if (reader != null) {
+                reader.close();
+            }
+        } finally {
+            sstableGate.writeLock().unlock();
         }
     }
 
