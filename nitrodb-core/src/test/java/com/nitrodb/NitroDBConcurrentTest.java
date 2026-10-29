@@ -80,6 +80,43 @@ class NitroDBConcurrentTest {
         }
     }
 
+    @Test
+    void writesStayVisibleAndSurviveRestartWhileMemtablesRotate() throws Exception {
+        int threads = 6;
+        int perThread = 1500;
+        NitroDBImpl db = (NitroDBImpl) new NitroDBBuilder().dataDir(tempDir).memTableSize(256).build();
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            List<Callable<Void>> tasks = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                final int thread = t;
+                tasks.add(() -> {
+                    for (int i = 0; i < perThread; i++) {
+                        byte[] key = bytes("k-" + thread + "-" + i);
+                        db.put(key, bytes("v-" + thread + "-" + i));
+                        assertTrue(db.get(key).isPresent(), "key written by this thread is not readable: " + thread + "-" + i);
+                    }
+                    return null;
+                });
+            }
+            for (Future<Void> future : executor.invokeAll(tasks)) {
+                future.get();
+            }
+            db.awaitBackgroundWorkForTesting();
+        } finally {
+            executor.shutdownNow();
+            db.close();
+        }
+
+        try (NitroDB reopened = new NitroDBBuilder().dataDir(tempDir).build()) {
+            for (int t = 0; t < threads; t++) {
+                for (int i = 0; i < perThread; i++) {
+                    assertTrue(reopened.get(bytes("k-" + t + "-" + i)).isPresent(), "lost after restart: " + t + "-" + i);
+                }
+            }
+        }
+    }
+
     private static List<String> scanKeys(NitroDB db, ReadOptions options) {
         List<String> keys = new ArrayList<>();
         try (var scan = db.scan(bytes("alpha"), bytes("omega"), options)) {
