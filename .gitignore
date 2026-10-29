@@ -30,3 +30,6 @@ jmh-result.json
 # Coverage
 *.exec
 jacoco.xml
+
+# local Maven copies
+.tools/

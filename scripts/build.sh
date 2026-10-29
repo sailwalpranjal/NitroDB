@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 set -eu
-mvn clean compile
+./mvnw clean compile

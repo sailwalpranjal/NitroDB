@@ -17,12 +17,12 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       - name: Compile
-        run: mvn -B compile
+        run: ./mvnw -B compile
       - name: Unit Tests
-        run: mvn -B test -pl nitrodb-core
+        run: ./mvnw -B test -pl nitrodb-core
       - name: Integration Tests
-        run: mvn -B verify -pl nitrodb-core
+        run: ./mvnw -B verify -pl nitrodb-core
       - name: Checkstyle
-        run: mvn -B checkstyle:check
+        run: ./mvnw -B checkstyle:check
       - name: Coverage Report
-        run: mvn -B jacoco:report
+        run: ./mvnw -B jacoco:report
