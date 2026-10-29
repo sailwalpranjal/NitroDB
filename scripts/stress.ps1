@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$maven = Join-Path $repoRoot ".tools\apache-maven-3.9.16\bin\mvn.cmd"
+$maven = Join-Path $repoRoot "mvnw.cmd"
 
 if (-not (Test-Path $maven)) {
     $maven = "mvn"

@@ -16,7 +16,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
       - name: Build
-        run: mvn -B package -DskipTests -pl nitrodb-benchmarks
+        run: ./mvnw -B package -DskipTests -pl nitrodb-benchmarks
       - name: Run JMH
         run: |
           java -server -XX:+UseG1GC -XX:MaxDirectMemorySize=2g \

@@ -80,6 +80,86 @@ class NitroDBConcurrentTest {
         }
     }
 
+    @Test
+    void writesStayVisibleAndSurviveRestartWhileMemtablesRotate() throws Exception {
+        int threads = 6;
+        int perThread = 1500;
+        NitroDBImpl db = (NitroDBImpl) new NitroDBBuilder().dataDir(tempDir).memTableSize(256).build();
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            List<Callable<Void>> tasks = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                final int thread = t;
+                tasks.add(() -> {
+                    for (int i = 0; i < perThread; i++) {
+                        byte[] key = bytes("k-" + thread + "-" + i);
+                        db.put(key, bytes("v-" + thread + "-" + i));
+                        assertTrue(db.get(key).isPresent(), "key written by this thread is not readable: " + thread + "-" + i);
+                    }
+                    return null;
+                });
+            }
+            for (Future<Void> future : executor.invokeAll(tasks)) {
+                future.get();
+            }
+            db.awaitBackgroundWorkForTesting();
+        } finally {
+            executor.shutdownNow();
+            db.close();
+        }
+
+        try (NitroDB reopened = new NitroDBBuilder().dataDir(tempDir).build()) {
+            for (int t = 0; t < threads; t++) {
+                for (int i = 0; i < perThread; i++) {
+                    assertTrue(reopened.get(bytes("k-" + t + "-" + i)).isPresent(), "lost after restart: " + t + "-" + i);
+                }
+            }
+        }
+    }
+
+    @Test
+    void readsStayCorrectWhileCompactionReplacesFiles() throws Exception {
+        NitroDBImpl db = (NitroDBImpl) new NitroDBBuilder().dataDir(tempDir).memTableSize(256).build();
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        try {
+            for (int i = 0; i < 400; i++) {
+                db.put(bytes("stable-" + i), bytes("value-" + i));
+            }
+            db.awaitBackgroundWorkForTesting();
+
+            java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean();
+            List<Callable<Void>> readers = new ArrayList<>();
+            for (int t = 0; t < 3; t++) {
+                readers.add(() -> {
+                    int i = 0;
+                    while (!done.get()) {
+                        int n = (i++ * 7) % 400;
+                        assertArrayEquals(bytes("value-" + n), db.get(bytes("stable-" + n)).orElseThrow());
+                    }
+                    return null;
+                });
+            }
+            List<Future<Void>> running = new ArrayList<>();
+            for (Callable<Void> reader : readers) {
+                running.add(executor.submit(reader));
+            }
+            for (int round = 0; round < 12; round++) {
+                db.triggerCompactionForTesting();
+                db.awaitBackgroundWorkForTesting();
+                for (int i = 0; i < 20; i++) {
+                    db.put(bytes("churn-" + round + "-" + i), bytes("x"));
+                }
+            }
+            done.set(true);
+            for (Future<Void> reader : running) {
+                reader.get();
+            }
+        } finally {
+            executor.shutdownNow();
+            db.close();
+        }
+    }
+
     private static List<String> scanKeys(NitroDB db, ReadOptions options) {
         List<String> keys = new ArrayList<>();
         try (var scan = db.scan(bytes("alpha"), bytes("omega"), options)) {

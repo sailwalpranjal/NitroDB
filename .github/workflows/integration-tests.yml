@@ -16,6 +16,6 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
       - name: Build
-        run: mvn -B -pl nitrodb-jcstress -am package -DskipTests
+        run: ./mvnw -B -pl nitrodb-jcstress -am package -DskipTests
       - name: Stress Tests
         run: sh scripts/stress.sh

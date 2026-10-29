@@ -63,6 +63,14 @@ public final class NitroDBImpl implements NitroDB {
     private final Map<String, SSTableReader> sstableReaders = new ConcurrentHashMap<>();
     private final ReentrantLock[] stripeLocks = new ReentrantLock[64];
     private final ReentrantLock rotationLock = new ReentrantLock();
+    // Point reads hold the read side while they search the SSTables; removing a compacted-away
+    // file takes the write side, so a read never uses a file that is being closed and deleted.
+    private final java.util.concurrent.locks.ReentrantReadWriteLock sstableGate =
+            new java.util.concurrent.locks.ReentrantReadWriteLock();
+    // Writers hold the read side while they put into the active memtable; rotation takes the write
+    // side. That way a memtable is never copied while a write to it is still in flight.
+    private final java.util.concurrent.locks.ReentrantReadWriteLock writeGate =
+            new java.util.concurrent.locks.ReentrantReadWriteLock();
     private final FileLock dbLock;
     private final FlushWorker flushWorker;
     private final CompactionWorker compactionWorker;
@@ -129,7 +137,12 @@ public final class NitroDBImpl implements NitroDB {
             if (shouldSyncWrite(options)) {
                 walWriter.sync();
             }
-            activeMemTable.get().put(key, value, sequence);
+            writeGate.readLock().lock();
+            try {
+                activeMemTable.get().put(key, value, sequence);
+            } finally {
+                writeGate.readLock().unlock();
+            }
             checkMemTableThreshold();
             metrics.counter("writes.total").increment();
             metrics.histogram("writes.latency.us").record(TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - start));
@@ -182,7 +195,12 @@ public final class NitroDBImpl implements NitroDB {
             if (config.syncWrites()) {
                 walWriter.sync();
             }
-            activeMemTable.get().putTombstone(key, sequence);
+            writeGate.readLock().lock();
+            try {
+                activeMemTable.get().putTombstone(key, sequence);
+            } finally {
+                writeGate.readLock().unlock();
+            }
             checkMemTableThreshold();
             metrics.counter("writes.total").increment();
             metrics.counter("deletes.total").increment();
@@ -285,6 +303,7 @@ public final class NitroDBImpl implements NitroDB {
 
     private void rotateMemTable(boolean force) {
         rotationLock.lock();
+        writeGate.writeLock().lock();
         try {
             MemTable current = activeMemTable.get();
             if (!force && current.sizeBytes() < config.memTableSizeBytes()) {
@@ -294,14 +313,20 @@ public final class NitroDBImpl implements NitroDB {
                 return;
             }
             MemTable replacement = new MemTable();
-            if (!activeMemTable.compareAndSet(current, replacement)) {
-                return;
-            }
+            // No write is in flight (write gate held), so the copy is complete. Make the frozen
+            // table readable before the empty one becomes active; a reader that sees the new
+            // active table must also be able to find the old one.
             ImmutableMemTable immutable = current.freeze();
             immutableMemTables.add(0, immutable);
             flushOrder.addLast(immutable);
+            if (!activeMemTable.compareAndSet(current, replacement)) {
+                immutableMemTables.remove(immutable);
+                flushOrder.remove(immutable);
+                return;
+            }
             flushWorker.enqueue(immutable);
         } finally {
+            writeGate.writeLock().unlock();
             rotationLock.unlock();
         }
     }
@@ -312,13 +337,18 @@ public final class NitroDBImpl implements NitroDB {
     }
 
     private Optional<MemTableEntry> searchSSTables(byte[] key, long maxSeq) {
-        for (SSTableReader reader : orderedReadersForLookup()) {
-            Optional<MemTableEntry> entry = reader.getEntry(key, maxSeq);
-            if (entry.isPresent()) {
-                return entry;
+        sstableGate.readLock().lock();
+        try {
+            for (SSTableReader reader : orderedReadersForLookup()) {
+                Optional<MemTableEntry> entry = reader.getEntry(key, maxSeq);
+                if (entry.isPresent()) {
+                    return entry;
+                }
             }
+            return Optional.empty();
+        } finally {
+            sstableGate.readLock().unlock();
         }
-        return Optional.empty();
     }
 
     private List<SSTableReader> orderedReadersForLookup() {
@@ -356,9 +386,14 @@ public final class NitroDBImpl implements NitroDB {
     }
 
     private void unregisterSstable(SSTableMetadata metadata) {
-        SSTableReader reader = sstableReaders.remove(metadata.fileId());
-        if (reader != null) {
-            reader.close();
+        sstableGate.writeLock().lock();
+        try {
+            SSTableReader reader = sstableReaders.remove(metadata.fileId());
+            if (reader != null) {
+                reader.close();
+            }
+        } finally {
+            sstableGate.writeLock().unlock();
         }
     }
 
