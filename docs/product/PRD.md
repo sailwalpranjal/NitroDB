@@ -55,4 +55,3 @@ See [METRICS.md](METRICS.md).
 - **Not production grade.** Single node, no compression, no controlled benchmark study. The quick JMH numbers in the design document are smoke runs on one machine.
 - **Write throughput during compaction** looks low in the smoke run (`CompactionLoadBenchmark.writeLoad`, about 96 ops/s). Open question: is that the benchmark's workload or a real stall?
 - **Off-heap cache.** The block cache uses an off-heap allocator (`cache/OffHeapAllocator.java`). I have not audited its lifetime rules for this document.
-- **A bundled Maven distribution** (`.tools/`, about 20 MB) is committed to the repository. That is convenient on Windows and heavy for everyone else.

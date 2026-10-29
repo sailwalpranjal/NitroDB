@@ -12,6 +12,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); version
 - Product documents under `docs/product/`.
 
 ### Changed
+- The 20 MB Maven distribution under `.tools/` is replaced by the Maven wrapper (`mvnw`, `mvnw.cmd`, `.mvn/wrapper`). Build and CI commands use it.
 - README restructured: who it is for, how it works, evidence, limits. The unsupported-for-production position is stated first.
 - Documentation links in the README are relative, so they work on GitHub.
 

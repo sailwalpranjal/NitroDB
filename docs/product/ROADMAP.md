@@ -7,7 +7,6 @@ Scores are my own judgement. RICE = Reach x Impact x Confidence / Effort. Reach 
 | Item | Why | Score (my judgement) |
 |---|---|---|
 | Investigate the 96 ops/s result of `CompactionLoadBenchmark.writeLoad` | Either the benchmark is wrong or writes stall during compaction; both are worth knowing | RICE: 5 x 2 x 0.6 / 1 = **6.0** |
-| Replace the committed `.tools/` Maven with the Maven wrapper | 20 MB of binaries in git and a README that depends on a Windows path | ICE: (5 + 9 + 8) / 3 = **7.3** |
 | Run the JCStress suite in CI on a schedule | The 42/42 result is recorded once; a regression would go unnoticed | RICE: 6 x 2 x 0.7 / 1 = **8.4** |
 | Publish a controlled benchmark note (hardware, JVM flags, repetitions) | The only numbers today are quick smoke runs | ICE: (5 + 7 + 6) / 3 = **6.0** |
 

@@ -9,14 +9,14 @@ For anything larger than a typo or a one-line fix, open an issue first using the
 ## Local setup
 
 ```
-# Java 21 or newer and Maven 3.9 (a copy of Maven is committed under .tools/)
-mvn -B compile
+# Java 21 or newer; the Maven wrapper fetches Maven itself
+./mvnw -B compile
 ```
 
 ## Running the tests
 
 ```
-mvn -B test -pl nitrodb-core
+./mvnw -B test -pl nitrodb-core
 ```
 
 Please run them before you push. CI runs the same command.

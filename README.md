@@ -23,11 +23,11 @@ That is the output of the example runner: write two keys, delete one, close, reo
 
 ## Quick start
 
-You need JDK 21 or newer. A Maven 3.9 distribution is committed under `.tools/` (see "Limits and known gaps"); any Maven works.
+You need JDK 21 or newer. The Maven wrapper downloads Maven 3.9.11 on first use, so nothing else is required.
 
 ```bash
-mvn -B -q -pl nitrodb-core test          # 68 tests
-mvn -pl nitrodb-core exec:java -Dexec.mainClass=com.nitrodb.NitroDBExampleRunner -Dexec.args=example-data
+./mvnw -B -q -pl nitrodb-core test       # 68 tests
+./mvnw -pl nitrodb-core exec:java -Dexec.mainClass=com.nitrodb.NitroDBExampleRunner -Dexec.args=example-data
 ```
 
 Windows, with the bundled Maven:
@@ -72,7 +72,6 @@ Benchmarks: JMH benchmarks are packaged (`nitrodb-benchmarks`). The only results
 - **Durability depends on configuration.** `config/default.properties` sets `syncWrites=false` and `walSyncMode=ASYNC`, so the most recent writes can be lost on power failure. Change them if that matters.
 - **The compaction smoke benchmark looks wrong or slow** (about 96 ops/s against about 142,000 for sequential puts). I have not worked out which. It is the first roadmap item.
 - **JCStress is not run in CI.** The 42 of 42 result is a one-off.
-- **A Maven distribution is committed** under `.tools/` (about 20 MB). It makes the Windows instructions work and bloats the repository. Replacing it with the Maven wrapper is on the roadmap.
 - **Not audited:** the off-heap block cache allocator's lifetime rules.
 
 ## Product thinking
