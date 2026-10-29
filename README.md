@@ -26,7 +26,7 @@ That is the output of the example runner: write two keys, delete one, close, reo
 You need JDK 21 or newer. The Maven wrapper downloads Maven 3.9.11 on first use, so nothing else is required.
 
 ```bash
-./mvnw -B -q -pl nitrodb-core test       # 68 tests
+./mvnw -B -q -pl nitrodb-core test       # 69 tests
 ./mvnw -pl nitrodb-core exec:java -Dexec.mainClass=com.nitrodb.NitroDBExampleRunner -Dexec.args=example-data
 ```
 
@@ -58,7 +58,7 @@ Reads go through snapshots: a snapshot is a sequence number, and keys are stored
 
 ## Evidence
 
-Measured for this README by running `mvn -pl nitrodb-core test` on JDK 25 (compiling for Java 21): **68 tests, 0 failures, 0 errors.**
+Measured for this README by running `mvn -pl nitrodb-core test` on JDK 25 (compiling for Java 21): **69 tests, 0 failures, 0 errors.**
 
 Recorded in the design document from a run on 2026-06-05, not repeated for this README: `mvn verify` succeeded across all three modules, and the JCStress suite (concurrent write and read, snapshot isolation, compaction race) passed 42 of 42 outcomes.
 
